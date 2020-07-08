@@ -1,0 +1,7 @@
+*.sqlite
+/cache
+/venv
+/final
+/raw
+/paths_requests
+/.idea
