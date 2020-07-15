@@ -5,7 +5,9 @@ Transport System Analysis -- Copyright (C) 2020, Alexander Tsyba
 Comes under GNU GPL v3
 
 dump.py is the first step in transport system analysis - downloading routes and
-stations of specified cities into SQLite database.
+stations of specified cities into SQLite database. This is a needed evil as
+it is much easier to work with info from local DB vs. referring to API
+anytime for different actions like building graphs and analysing shortest paths.
 
 Cities are taken from cities.txt (or cities_man.txt, if you want to enter them
 manually) in the format [city, country] in English;
@@ -15,7 +17,9 @@ you've written it;
 
 If your Internet connection was interruped, you can rerun the script - data
 should be maintained in DB and Pycache and continue downloading from the
-place you've stopped
+place you've stopped;
+
+Next step after dump.py is graphs.py to build non-connected graph object first.
 """
 
 import re
@@ -185,6 +189,11 @@ def query_to_base(city, bbox, system_id, db_connection, cursor, query):
     # for 'train' (city trains), 'subway' and 'light_rail' - data is more or
     # less good and having real stations is important due to high capacity and
     # frequency, so we will construct graph on real stations (stops)
+    # It is important to operate with real stations for heavy
+    # rail transit, as usually average haul between stations is longer than
+    # acceptable pedestrian walk and you cannot assume that person can get on
+    # the route at any point and interchange to cross-route in any point (
+    # interchange may not be built).
     # # #
     # for 'bus', 'trolleybus' and 'tram' data on stops is often incomplete, so
     # we will build graph on each 20-th node from route ways (20 is chosen as

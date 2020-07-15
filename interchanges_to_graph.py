@@ -7,6 +7,11 @@ from itertools import product
 
 # not efficient stepping in get_paths
 
+# for heavy rail manual interchanges since - not all overground, some built
+# and often it is within one payment area and sometimes even physically close
+# stations do not have interchange physically - like Smolenskaya / Smolenskaya
+# no such issue with overground transit
+
 # for tram / bus / trolleybus that can connect to subway, train, light_rail
 def way_auto_interchanges_to_graph(system_id, graph, database):
     waiting_coef = {

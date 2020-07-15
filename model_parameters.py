@@ -18,3 +18,20 @@ NODE_PRECISION = 20  # for bus, tram, etc. we download each OSM node,
 # not just stop. node_precision tells N in N-th node to download. 20 is more
 # or less represents real distance between the stops (100-1500 meters).
 
+# GRAPHS.PY - building raw unconnected graphs
+EDGE_COEF = {
+            'subway': 1,
+            'train': 1.125,
+            'light_rail': 0.75,
+            'tram': 0.5,
+            'bus': 0.375,
+            'trolleybus': 0.375
+}
+EDGE_COLOR = {
+            'subway': 'black',
+            'train': 'blue',
+            'light_rail': 'cyan',
+            'tram': 'magenta',
+            'bus': 'red',
+            'trolleybus': 'red'
+}
