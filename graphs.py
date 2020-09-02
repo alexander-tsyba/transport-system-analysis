@@ -32,7 +32,7 @@ import model_parameters
 
 
 def routes_to_graph(graph, system_id, routes_type, database):
-    # this function adds to graph heavy rail systems which data quality is
+    # this function adds to graph heavy rail systems for which data quality is
     # good in OSM (rare cases of missing stations on routes) and which by
     # design doesn't deviate a lot from straight line between stations A and
     # B, so we can simply add all stations with coordinates and connect them
@@ -47,8 +47,10 @@ def routes_to_graph(graph, system_id, routes_type, database):
                      (system_id, routes_type))
     for route in database.fetchall():
         previous_station = list()
-        print('Working on route ' + str(route[1]) + ', id=' + str(route[0]) + '...')
-        database.execute('SELECT id, name, longitude, latitude, route_id FROM Station WHERE route_id = ? ORDER BY id',
+        print('Working on route ' + str(route[1]) + ', id=' + str(route[0]) +
+              '...')
+        database.execute('''SELECT id, name, longitude, latitude, route_id
+                            FROM Station WHERE route_id = ? ORDER BY id''',
                          (route[0],))
         route_stations = database.fetchall()
         index = -1
@@ -58,8 +60,10 @@ def routes_to_graph(graph, system_id, routes_type, database):
             station_already_exists_id_route_id = 0
             database.execute('''SELECT Station.id, Route.id
                                 FROM Station JOIN Route JOIN RailwaySystem 
-                                ON Station.route_id = Route.id AND Route.system_id = RailwaySystem.id 
-                                WHERE Station.name = ? AND Station.id <> ? AND Route.ref = ? AND RailwaySystem.id = ?
+                                ON Station.route_id = Route.id
+                                AND Route.system_id = RailwaySystem.id 
+                                WHERE Station.name = ? AND Station.id <> ?
+                                AND Route.ref = ? AND RailwaySystem.id = ?
                                 ORDER BY Station.id''',
                              (station[1], station[0], route[1], system_id))
             existing_stations = database.fetchall()
@@ -72,7 +76,9 @@ def routes_to_graph(graph, system_id, routes_type, database):
                 database.execute('''SELECT Station.id, Route.id, Station.name 
                                     FROM Station JOIN Route
                                     ON Station.route_id = Route.id
-                                    WHERE Station.name = ? AND Station.longitude = ? AND Station.latitude = ? 
+                                    WHERE Station.name = ? 
+                                    AND Station.longitude = ? 
+                                    AND Station.latitude = ? 
                                     AND Route.ref <> ?
                                     ORDER BY Station.id''',
                                  (station[1], station[2], station[3], route[1]))
@@ -86,28 +92,43 @@ def routes_to_graph(graph, system_id, routes_type, database):
                     database.execute('''SELECT Station.id, Route.id 
                                         FROM Station JOIN Route
                                         ON Station.route_id = Route.id
-                                        WHERE Station.name = ? AND Station.longitude <> ? AND Station.latitude <> ? 
+                                        WHERE Station.name = ? 
+                                        AND Station.longitude <> ? 
+                                        AND Station.latitude <> ? 
                                         AND Route.ref <> ?
                                         ORDER BY Station.id''',
-                                     (station[1], station[2], station[3], route[1]))
+                                     (station[1], station[2],
+                                      station[3], route[1]))
                     for adjacent_existing_stations in database.fetchall():
                         exit_cycle_2 = False
                         if graph.has_node(adjacent_existing_stations[0]):
-                            neighbours_of_existing_node = nx.all_neighbors(graph, adjacent_existing_stations[0])
+                            neighbours_of_existing_node = nx.all_neighbors(
+                                graph,
+                                adjacent_existing_stations[0]
+                            )
                             for neighbour in neighbours_of_existing_node:
-                                neighbour_name = nx.get_node_attributes(graph, 'name')[neighbour]
-                                if previous_station and index + 1 < len(route_stations):
-                                    if neighbour_name == previous_station[1] or neighbour_name == \
+                                neighbour_name =\
+                                    nx.get_node_attributes(graph,
+                                                           'name')[neighbour]
+                                if previous_station and\
+                                        index + 1 < len(route_stations):
+                                    if neighbour_name == previous_station[1] or\
+                                            neighbour_name == \
                                             route_stations[index + 1][1]:
-                                        station_already_exists_id = adjacent_existing_stations[0]
-                                        station_already_exists_id_route_id = adjacent_existing_stations[1]
+                                        station_already_exists_id =\
+                                            adjacent_existing_stations[0]
+                                        station_already_exists_id_route_id =\
+                                            adjacent_existing_stations[1]
                                         exit_cycle = True
                                         exit_cycle_2 = True
                                         break
-                                elif previous_station and index + 1 >= len(route_stations):
+                                elif previous_station and\
+                                        index + 1 >= len(route_stations):
                                     if neighbour_name == previous_station[1]:
-                                        station_already_exists_id = adjacent_existing_stations[0]
-                                        station_already_exists_id_route_id = adjacent_existing_stations[1]
+                                        station_already_exists_id =\
+                                            adjacent_existing_stations[0]
+                                        station_already_exists_id_route_id =\
+                                            adjacent_existing_stations[1]
                                         exit_cycle = True
                                         exit_cycle_2 = True
                                         break
@@ -116,14 +137,22 @@ def routes_to_graph(graph, system_id, routes_type, database):
                     if exit_cycle:
                         break
             if station_already_exists_id != 0:
-                if (not previous_station) or graph.has_edge(previous_station[0], station_already_exists_id):
-                    database.execute('SELECT id, name, longitude, latitude, route_id FROM Station WHERE id = ? LIMIT 1',
+                if (not previous_station) or\
+                        graph.has_edge(previous_station[0],
+                                       station_already_exists_id):
+                    database.execute('''SELECT id, name, longitude,
+                                        latitude, route_id 
+                                        FROM Station WHERE id = ? LIMIT 1''',
                                      (station_already_exists_id,))
                     previous_station = database.fetchone()
                     continue
-                elif not graph.has_edge(previous_station[0], station_already_exists_id) and \
-                        previous_station[4] == station_already_exists_id_route_id:
-                    database.execute('SELECT id, name, longitude, latitude, route_id FROM Station WHERE id = ? LIMIT 1',
+                elif not graph.has_edge(previous_station[0],
+                                        station_already_exists_id) and \
+                        previous_station[4] ==\
+                        station_already_exists_id_route_id:
+                    database.execute('''SELECT id, name, longitude,
+                                        latitude, route_id 
+                                        FROM Station WHERE id = ? LIMIT 1''',
                                      (station_already_exists_id,))
                     previous_station = database.fetchone()
                     continue
@@ -131,20 +160,32 @@ def routes_to_graph(graph, system_id, routes_type, database):
                     distance = geo_distance(
                         previous_station[2],
                         previous_station[3],
-                        nx.get_node_attributes(graph, 'pos')[station_already_exists_id][0],
-                        nx.get_node_attributes(graph, 'pos')[station_already_exists_id][1]
+                        nx.get_node_attributes(
+                            graph,
+                            'pos'
+                        )[station_already_exists_id][0],
+                        nx.get_node_attributes(
+                            graph,
+                            'pos'
+                        )[station_already_exists_id][1]
                     )
                     graph.add_edge(previous_station[0],
                                    station_already_exists_id,
-                                   weight=distance / model_parameters.EDGE_COEF[routes_type],
-                                   color=model_parameters.EDGE_COLOR[routes_type],
+                                   weight=
+                                   (distance /
+                                   model_parameters.EDGE_COEF[routes_type]),
+                                   color=
+                                   model_parameters.EDGE_COLOR[routes_type],
                                    type=routes_type
                                    )
-                    database.execute('SELECT id, name, longitude, latitude, route_id FROM Station WHERE id = ? LIMIT 1',
+                    database.execute('''SELECT id, name, longitude,
+                                        latitude, route_id
+                                        FROM Station WHERE id = ? LIMIT 1''',
                                      (station_already_exists_id,))
                     previous_station = database.fetchone()
             else:
-                graph.add_node(station[0], name=station[1], pos=(station[2], station[3]))
+                graph.add_node(station[0], name=station[1],
+                               pos=(station[2], station[3]))
                 try:
                     distance = geo_distance(
                         previous_station[2],
@@ -154,8 +195,11 @@ def routes_to_graph(graph, system_id, routes_type, database):
                     )
                     graph.add_edge(previous_station[0],
                                    station[0],
-                                   weight=distance / model_parameters.EDGE_COEF[routes_type],
-                                   color=model_parameters.EDGE_COLOR[routes_type],
+                                   weight=
+                                   (distance /
+                                   model_parameters.EDGE_COEF[routes_type]),
+                                   color=
+                                   model_parameters.EDGE_COLOR[routes_type],
                                    type=routes_type
                                    )
                     previous_station = station
@@ -163,7 +207,8 @@ def routes_to_graph(graph, system_id, routes_type, database):
                     previous_station = station
                     continue
         if route[2] == 1 and route_stations and len(route_stations) > 1 and \
-                graph.has_node(route_stations[0][0]) and graph.has_node(route_stations[-1][0]):
+                graph.has_node(route_stations[0][0]) and\
+                graph.has_node(route_stations[-1][0]):
             distance = geo_distance(
                 route_stations[-1][2],
                 route_stations[-1][3],
@@ -171,25 +216,34 @@ def routes_to_graph(graph, system_id, routes_type, database):
                 route_stations[0][3]
             )
             graph.add_edge(route_stations[-1][0], route_stations[0][0],
-                           weight=distance / model_parameters.EDGE_COEF[routes_type],
+                           weight=
+                           (distance /
+                            model_parameters.EDGE_COEF[routes_type]),
                            color=model_parameters.EDGE_COLOR[routes_type],
                            type=routes_type)
     return graph
 
 
 def ways_to_graph(graph, system_id, routes_type, database):
-    database.execute('SELECT id, ref, circle FROM Route WHERE system_id = ? AND type = ?', (system_id, routes_type))
+    database.execute('''SELECT id, ref, circle 
+                        FROM Route 
+                        WHERE system_id = ? AND type = ?''',
+                     (system_id, routes_type))
     for route in database.fetchall():
-        print('Working on route ' + str(route[1]) + ', id=' + str(route[0]) + '...')
+        print('Working on route ' + str(route[1]) + ', id=' +
+              str(route[0]) + '...')
         database.execute('SELECT id FROM Way WHERE route_id = ?', (route[0],))
         for way in database.fetchall():
             previous_station = list()
-            database.execute('SELECT id, name, longitude, latitude FROM Station WHERE way_id = ? ORDER BY way_order',
+            database.execute('''SELECT id, name, longitude, latitude
+                                FROM Station WHERE way_id = ? 
+                                ORDER BY way_order''',
                              (way[0],))
             way_nodes = database.fetchall()
             for station in way_nodes:
                 if previous_station:
-                    graph.add_node(station[0], name=station[1], pos=(station[2], station[3]))
+                    graph.add_node(station[0], name=station[1],
+                                   pos=(station[2], station[3]))
                     distance = geo_distance(
                         previous_station[2],
                         previous_station[3],
@@ -198,19 +252,25 @@ def ways_to_graph(graph, system_id, routes_type, database):
                     )
                     graph.add_edge(previous_station[0],
                                    station[0],
-                                   weight=distance / model_parameters.EDGE_COEF[routes_type],
-                                   color=model_parameters.EDGE_COLOR[routes_type],
+                                   weight=
+                                   (distance /
+                                   model_parameters.EDGE_COEF[routes_type]),
+                                   color=
+                                   model_parameters.EDGE_COLOR[routes_type],
                                    type=routes_type
                                    )
                     previous_station = station
                 else:
-                    graph.add_node(station[0], name=station[1], pos=(station[2], station[3]))
+                    graph.add_node(station[0], name=station[1],
+                                   pos=(station[2], station[3]))
                     previous_station = station
-        database.execute('SELECT id, name, longitude, latitude, route_id FROM Station WHERE route_id = ? ORDER BY id',
+        database.execute('''SELECT id, name, longitude, latitude, route_id
+                            FROM Station WHERE route_id = ? ORDER BY id''',
                          (route[0],))
         route_stations = database.fetchall()
         if route[2] == 1 and route_stations and len(route_stations) > 1 and \
-                graph.has_node(route_stations[0][0]) and graph.has_node(route_stations[-1][0]):
+                graph.has_node(route_stations[0][0]) and\
+                graph.has_node(route_stations[-1][0]):
             distance = geo_distance(
                 route_stations[-1][2],
                 route_stations[-1][3],
@@ -218,7 +278,9 @@ def ways_to_graph(graph, system_id, routes_type, database):
                 route_stations[0][3]
             )
             graph.add_edge(route_stations[-1][0], route_stations[0][0],
-                           weight=distance / model_parameters.EDGE_COEF[routes_type],
+                           weight=
+                           (distance /
+                           model_parameters.EDGE_COEF[routes_type]),
                            color=model_parameters.EDGE_COLOR[routes_type],
                            type=routes_type)
     return graph
@@ -242,17 +304,23 @@ def fix_edges(database, graph, type):
         median_length = 0
     edges_to_remove = list()
     for edge in graph.edges.data():
-        if edge[2]['weight'] > median_length * coef[type] and edge[2]['type'] == type:
-            database.execute('''SELECT Station.name, Route.ref FROM Station JOIN Route
-                                ON Station.route_id = Route.id WHERE Station.id = ? LIMIT 1''',
+        if edge[2]['weight'] > median_length * coef[type] and\
+                edge[2]['type'] == type:
+            database.execute('''SELECT Station.name, Route.ref 
+                                FROM Station JOIN Route
+                                ON Station.route_id = Route.id
+                                WHERE Station.id = ? LIMIT 1''',
                              (edge[0],))
             first_node = database.fetchone()
-            database.execute('''SELECT Station.name, Route.ref FROM Station JOIN Route
-                                ON Station.route_id = Route.id WHERE Station.id = ? LIMIT 1''',
+            database.execute('''SELECT Station.name, Route.ref
+                                FROM Station JOIN Route
+                                ON Station.route_id = Route.id
+                                WHERE Station.id = ? LIMIT 1''',
                              (edge[1],))
             end_node = database.fetchone()
-            print(str(first_node[0]) + ' (' + str(first_node[1]) + ') <-> ' + str(end_node[0]) +
-                  ' (' + str(end_node[1]) + '), ' + str(round(edge[2]['weight'], 2)) +
+            print(str(first_node[0]) + ' (' + str(first_node[1]) + ') <-> ' +
+                  str(end_node[0]) + ' (' + str(end_node[1]) + '), ' +
+                  str(round(edge[2]['weight'], 2)) +
                   ' km looks strange to me. Delete it? (Y/N): ', end='')
             decision = input()
             if decision.upper() == 'Y':
@@ -274,7 +342,8 @@ def db_cleanup(system_id, graph, database, db_connection):
     # graph construction. Refer to interchanges_to_graph.py for more details
     # on interchange addition mechanics.
     database.execute('''SELECT Station.id FROM Station JOIN Route
-                        ON Station.route_id = Route.id WHERE Route.system_id = ?''', (system_id,))
+                        ON Station.route_id = Route.id
+                        WHERE Route.system_id = ?''', (system_id,))
 
     db_stations = set()
     for station in database.fetchall():
