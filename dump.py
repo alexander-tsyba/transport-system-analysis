@@ -34,10 +34,8 @@ import model_parameters
 def add_system(network_name, cursor):
     # function updates the list of transport systems in database and returns id
     # of created system
-    cursor.execute('INSERT OR IGNORE INTO RailwaySystem (name) VALUES (?)',
-                   (network_name.rstrip(),))
-    cursor.execute('SELECT id FROM RailwaySystem WHERE name = ? LIMIT 1',
-                   (network_name.rstrip(),))
+    cursor.execute('INSERT OR IGNORE INTO RailwaySystem (name) VALUES (?)', (network_name.rstrip(),))
+    cursor.execute('SELECT id FROM RailwaySystem WHERE name = ? LIMIT 1', (network_name.rstrip(),))
     return cursor.fetchone()[0]
 
 
@@ -49,14 +47,11 @@ def add_route(route, system_id, cursor):
         if route.tag('ref') is None:
             # if route number (ref attribute in OSM) is not specified, ask user
             # to provide it manually by looking up relation id in OSM
-            print('Route id ' + str(route.id()) + ' has no *ref* attribute.'
-                                                  'Please kind provide it '
-                                                  'manually: ')
+            print('Route id ' + str(route.id()) + ' has no *ref* attribute. Please kindly provide it manually: ')
             route_ref = input()
         else:
             route_ref = route.tag('ref')  # else use one from OSM
-        cursor.execute('''INSERT INTO Route (id, ref, system_id, type)
-                        VALUES (?, ?, ?, ?)''',
+        cursor.execute('''INSERT INTO Route (id, ref, system_id, type) VALUES (?, ?, ?, ?)''',
                        (route.id(), route_ref, system_id, route.tag('route')))
         return route.id()
         # insert route id, number (ref), relation to system id and route type
@@ -65,8 +60,7 @@ def add_route(route, system_id, cursor):
         # if route is in the system, return False for less detailed OSM route
         # types not to add duplicated routes as one route is enough given route
         # representation in OSM ways and nodes ('virtual' stops)
-        if route.tag('route') == 'tram' or route.tag('route') == 'bus' or\
-                route.tag('route') == 'trolleybus':
+        if route.tag('route') == 'tram' or route.tag('route') == 'bus' or route.tag('route') == 'trolleybus':
             return False
         else:
             # for more high-quality data heavy rail transit, add even duplicated
@@ -83,8 +77,7 @@ def add_way(way, route_id, cursor):
     cursor.execute('SELECT id FROM Way WHERE id = ? LIMIT 1', (way.id(),))
     result = database.fetchone()
     if not result:
-        cursor.execute('INSERT INTO Way (id, route_id) VALUES (?, ?)',
-                       (way.id(), route_id))
+        cursor.execute('INSERT INTO Way (id, route_id) VALUES (?, ?)', (way.id(), route_id))
         return way.id()
     else:
         return False
@@ -101,10 +94,7 @@ def add_node(node, route_id, cursor, bbox, way_id, order):
         bbox_lat = bbox[0]
         bbox_lon = bbox[1]
         if bbox_lat[0] <= round(node.lat(), model_parameters.GEO_PRECISION)\
-                <= bbox_lat[1] and \
-                bbox_lon[0] <= round(node.lon(),
-                                     model_parameters.GEO_PRECISION)\
-                <= bbox_lon[1]:
+                <= bbox_lat[1] and  bbox_lon[0] <= round(node.lon(), model_parameters.GEO_PRECISION) <= bbox_lon[1]:
             # since some bus routes may go far beyond aglomerration yet serving
             # city mainly, we take bounding box of city area in OSM
             # and add only stops within this bounding box by checking if
@@ -147,8 +137,7 @@ def add_station(station, route_id, cursor):
         ).rstrip(station_enumeration.group(0)).rstrip()
     else:
         unenumerated_station_name = str(station.tag('name'))
-    cursor.execute('SELECT id FROM Station WHERE name = ? AND route_id = ?',
-                   (unenumerated_station_name, route_id))
+    cursor.execute('SELECT id FROM Station WHERE name = ? AND route_id = ?', (unenumerated_station_name, route_id))
     if not database.fetchall():
         # rest of the function just checks if station not in the base yet and
         # inserts it
@@ -218,8 +207,7 @@ def query_to_base(city, bbox, system_id, db_connection, cursor, query):
             else:
                 route_name = str(route.id()) + ' ' + str(route.tag('ref'))
                 # 'ref' OSM tag usually stores route number
-            print('Add route (' + str(route.id()) + ') -- ' + str(route_name) +
-                  '? (Y/N): ', end="")
+            print('Add route (' + str(route.id()) + ') -- ' + str(route_name) + '? (Y/N): ', end="")
             decision = input()
             if decision.upper() == 'Y':
                 routes_to_add.append(route)
@@ -239,8 +227,7 @@ def query_to_base(city, bbox, system_id, db_connection, cursor, query):
             # if we see that last and first station are the same, then route is
             # circular and we reflect this in database to properly build a graph
             if stations[0].id() == stations[-1].id():
-                cursor.execute('UPDATE Route SET circle = ? WHERE id = ?',
-                               (1, route_id))
+                cursor.execute('UPDATE Route SET circle = ? WHERE id = ?', (1, route_id))
             for station in stations:
                 # once we got all the stations we add them to database
                 add_station(station, route_id, cursor)
@@ -261,8 +248,7 @@ def query_to_base(city, bbox, system_id, db_connection, cursor, query):
                 continue
             route_id = add_route(route, system_id, cursor)
             if stations[0].id() == stations[-1].id():
-                cursor.execute('UPDATE Route SET circle = ? WHERE id = ?',
-                               (1, route_id))
+                cursor.execute('UPDATE Route SET circle = ? WHERE id = ?', (1, route_id))
             for station in stations:
                 add_station(station, route_id, cursor)
             db_connection.commit()
@@ -307,8 +293,7 @@ def query_to_base(city, bbox, system_id, db_connection, cursor, query):
                         # differs route by route especially with complex
                         # roundabouts with lots of exits
                         for node in way.nodes():
-                            add_node(node, route_id, cursor, bbox, way_id,
-                                     order)
+                            add_node(node, route_id, cursor, bbox, way_id, order)
                             # while adding nodes, we also pass OSM area (
                             # city) bounding box as a parameter, to ensure
                             # that we are adding only parts of routes within
@@ -360,8 +345,7 @@ def query_to_base(city, bbox, system_id, db_connection, cursor, query):
                 route_name = route.tag('description')
             else:
                 route_name = str(route.id()) + ' ' + str(route.tag('ref'))
-            print('Add route (' + str(route.id()) + ') -- ' + str(route_name) +
-                  '? (Y/N): ', end="")
+            print('Add route (' + str(route.id()) + ') -- ' + str(route_name) + '? (Y/N): ', end="")
             decision = input()
             if decision.upper() == 'Y':
                 routes_to_add.append(route)
@@ -382,16 +366,14 @@ def query_to_base(city, bbox, system_id, db_connection, cursor, query):
                 if way_id:
                     if way.nodes()[0].id() == way.nodes()[-1].id():
                         for node in way.nodes():
-                            add_node(node, route_id, cursor, bbox, way_id,
-                                     order)
+                            add_node(node, route_id, cursor, bbox, way_id, order)
                             order += 1
                     else:
                         for node in way.nodes():
                             i += 1
                             if i == 1 or i == len(way.nodes()) or i %\
                                     model_parameters.NODE_PRECISION == 0:
-                                add_node(node, route_id, cursor, bbox, way_id,
-                                         order)
+                                add_node(node, route_id, cursor, bbox, way_id, order)
                                 order += 1
                     db_connection.commit()
                 else:
@@ -484,18 +466,12 @@ with open('cities_man.txt', 'r', encoding='utf8') as cities_list:
         # exception, we add new transport system in the base and download all
         # the data for each transport type in the DB
         system_id = add_system(city, database)
-        query_to_base(city, bbox, system_id, db_connection, database,
-                      query_subway)
-        query_to_base(city, bbox, system_id, db_connection, database,
-                      query_train)
-        query_to_base(city, bbox, system_id, db_connection, database,
-                      query_lrt)
-        query_to_base(city, bbox, system_id, db_connection, database,
-                      query_tram)
-        query_to_base(city, bbox, system_id, db_connection, database,
-                      query_bus)
-        query_to_base(city, bbox, system_id, db_connection, database,
-                      query_trolleybus)
+        query_to_base(city, bbox, system_id, db_connection, database, query_subway)
+        query_to_base(city, bbox, system_id, db_connection, database, query_train)
+        query_to_base(city, bbox, system_id, db_connection, database, query_lrt)
+        query_to_base(city, bbox, system_id, db_connection, database, query_tram)
+        query_to_base(city, bbox, system_id, db_connection, database, query_bus)
+        query_to_base(city, bbox, system_id, db_connection, database, query_trolleybus)
 
 print("All cities added!")
 db_connection.close()
@@ -505,6 +481,7 @@ db_connection.close()
 # betweness cenrality?
 # vs. car path optimality - build route via Google API?
 # рельсовый транспорт логично смотреть потому что это анализ того, как власти направили потоки!
+# наложение реальной плотности поездок по данным яндекса внутренним
 
 # анализ начать с метро, гор поездов и ЛРТ...
 # изложить в статье цели и след шаги - GUI, плотность населения и AI

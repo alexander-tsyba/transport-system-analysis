@@ -26,7 +26,9 @@ def find_shortest_paths(system_id, system_graph, database, db_connection):
             # for some reason there still may be few components in the graph
             # но это не оч страшно, потому что мы optimality взвешивем по расстоянию direct_distance
             continue
-        direct_distance = geo_distance(position[pair[0]][0], position[pair[0]][1], position[pair[1]][0],
+        direct_distance = geo_distance(position[pair[0]][0],
+                                       position[pair[0]][1],
+                                       position[pair[1]][0],
                                        position[pair[1]][1])
         if direct_distance < 1.5:
             continue
@@ -53,8 +55,9 @@ def find_shortest_paths(system_id, system_graph, database, db_connection):
                     continue
         optimality = direct_distance / real_distance
         path_csv = ','.join(map(str, current_path))
-        database.execute('''INSERT OR IGNORE INTO Path (system_id, station_from, station_to, real_distance, direct_distance, optimality, steps)
-            VALUES (?, ?, ?, ?, ?, ?, ?)''',
+        database.execute('''INSERT OR IGNORE INTO Path (system_id, station_from, station_to, real_distance, 
+                        direct_distance, optimality, steps)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)''',
                          (
                              system_id,
                              pair[0],
