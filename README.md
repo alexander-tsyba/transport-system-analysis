@@ -8,3 +8,6 @@ How to run the script?
 3. interchanges_to_graph.py
 4. calculate.py
 5. get_paths.py
+
+I ask whether to add "bus", "trolleybus" and "train" because of intercity buses, trolleybuses (Urgench-Xiva, Yalta) and 
+trains

@@ -255,12 +255,30 @@ def query_to_base(city, bbox, system_id, db_connection, cursor, query):
         db_connection.commit()
         print('done!')
         return True
-    elif query[1] == 'tram' or query[1] == 'trolleybus':
+    else:
         # for tram and trolleybus, due to low data quality in OSM, we process
         # all individual 'ways' of those routes and add every n-th node of
         # each way + 1st and last node. n is global parameter; recommended
         # value is 20
+        routes_to_add = list()
+        # but before adding any routes, we iterate through them
+        # and ask user to confirm whether route should be added or not - OSM
+        # marks inter city buses / trolleys / trams and inner city buses / trams / trolleys in a same way. There is
+        # still a foolproof check on nodes within city bounding box,
+        # but downloading all nodes from intercity buses and checking for
+        # bbox would take eternity
         for route in result.elements():
+            if route.tag('name') is not None:
+                route_name = route.tag('name')
+            elif route.tag('description') is not None:
+                route_name = route.tag('description')
+            else:
+                route_name = str(route.id()) + ' ' + str(route.tag('ref'))
+            print('Add route (' + str(route.id()) + ') -- ' + str(route_name) + '? (Y/N): ', end="")
+            decision = input()
+            if decision.upper() == 'Y':
+                routes_to_add.append(route)
+        for route in routes_to_add:
             # for each route we search for ways without OSM 'role' to exclude
             # boundaries of platforms / stops which are also ways and also
             # can belong to route and only include actual route parts
@@ -306,10 +324,8 @@ def query_to_base(city, bbox, system_id, db_connection, cursor, query):
                         # for usual ways, we add 1st, last and n-th node
                         for node in way.nodes():
                             i += 1
-                            if i == 1 or i == len(way.nodes()) or i % \
-                                    model_parameters.NODE_PRECISION == 0:
-                                add_node(node, route_id, cursor, bbox, way_id,
-                                         order)
+                            if i == 1 or i == len(way.nodes()) or i % model_parameters.NODE_PRECISION == 0:
+                                add_node(node, route_id, cursor, bbox, way_id, order)
                                 order += 1
                     db_connection.commit()  # flush to SQlite after each way
                 else:
@@ -323,64 +339,6 @@ def query_to_base(city, bbox, system_id, db_connection, cursor, query):
             if ways[0].nodes()[0].id() == ways[-1].nodes()[-1].id():
                 # if first and last node of route is the same, we mark it as
                 # circle to properly bulid the graph
-                cursor.execute('UPDATE Route SET circle = ? WHERE id = ?',
-                               (1, route_id))
-            db_connection.commit()
-        db_connection.commit()
-        print('done!')
-        return True
-    else:
-        # in case transport type is the bus, code is identical to trams and
-        # trolleybus, but before adding any routes, we iterate through them
-        # and ask user to confirm whether route should be added or not - OSM
-        # marks inter city buses and inner city buses in a same way. There is
-        # still a foolproof check on nodes within city bounding box,
-        # but downloading all nodes from intercity buses and checking for
-        # bbox would take eternity
-        routes_to_add = list()
-        for route in result.elements():
-            if route.tag('name') is not None:
-                route_name = route.tag('name')
-            elif route.tag('description') is not None:
-                route_name = route.tag('description')
-            else:
-                route_name = str(route.id()) + ' ' + str(route.tag('ref'))
-            print('Add route (' + str(route.id()) + ') -- ' + str(route_name) + '? (Y/N): ', end="")
-            decision = input()
-            if decision.upper() == 'Y':
-                routes_to_add.append(route)
-        for route in routes_to_add:
-            ways = list()
-            for way in route.members(shallow=False):
-                if way.type() == 'way' and way.tag('role') is None:
-                    ways.append(way)
-            if not ways:
-                continue
-            route_id = add_route(route, system_id, cursor)
-            if not route_id:
-                continue
-            for way in ways:
-                order = 1
-                i = 0
-                way_id = add_way(way, route_id, cursor)
-                if way_id:
-                    if way.nodes()[0].id() == way.nodes()[-1].id():
-                        for node in way.nodes():
-                            add_node(node, route_id, cursor, bbox, way_id, order)
-                            order += 1
-                    else:
-                        for node in way.nodes():
-                            i += 1
-                            if i == 1 or i == len(way.nodes()) or i %\
-                                    model_parameters.NODE_PRECISION == 0:
-                                add_node(node, route_id, cursor, bbox, way_id, order)
-                                order += 1
-                    db_connection.commit()
-                else:
-                    add_node(way.nodes()[0], route_id, cursor, bbox, way_id, 1)
-                    add_node(way.nodes()[-1], route_id, cursor, bbox, way_id, 2)
-                    db_connection.commit()
-            if ways[0].nodes()[0].id() == ways[-1].nodes()[-1].id():
                 cursor.execute('UPDATE Route SET circle = ? WHERE id = ?',
                                (1, route_id))
             db_connection.commit()

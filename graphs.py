@@ -52,8 +52,8 @@ def routes_to_graph(graph, system_id, routes_type, database):
         database.execute('''SELECT id, name, longitude, latitude, route_id
                             FROM Station WHERE route_id = ? ORDER BY id''',
                          (route[0],))
-        route_stations = database.fetchall()
-        index = -1
+        route_stations = database.fetchall() # we download all route stations to iterate over them, add to graph and connect with edges
+        index = -1 # this is simple variable to count iteration cycles, we need to set it to -1 first to cover some corner cases when comparing length of the route with current cycle number
         for station in route_stations:
             index += 1
             station_already_exists_id = 0
@@ -72,6 +72,11 @@ def routes_to_graph(graph, system_id, routes_type, database):
                     station_already_exists_id = existing_station[0]
                     station_already_exists_id_route_id = existing_station[1]
                     break
+            # with above few lines we try to understand whether the same station exists on the same route and remember it
+            # it can happen sometimes when OSM data treats one station as two on the same route (for different directions),
+            # as 'ref' parameter of the route may be same for different directions
+            # if it (or they) exists, we remember it and stop iterating (we will find other existing ones and skip adding them to graph
+            # when iterating over other stations in this / other route
             if station_already_exists_id == 0:
                 database.execute('''SELECT Station.id, Route.id, Station.name 
                                     FROM Station JOIN Route
@@ -84,48 +89,54 @@ def routes_to_graph(graph, system_id, routes_type, database):
                                  (station[1], station[2], station[3], route[1]))
                 existing_stations = database.fetchall()
                 for existing_station in existing_stations:
-                    exit_cycle = False
                     if graph.has_node(existing_station[0]):
                         station_already_exists_id = existing_station[0]
                         station_already_exists_id_route_id = existing_station[1]
                         break
-                    database.execute('''SELECT Station.id, Route.id 
-                                        FROM Station JOIN Route
-                                        ON Station.route_id = Route.id
-                                        WHERE Station.name = ? 
-                                        AND Station.longitude <> ? 
-                                        AND Station.latitude <> ? 
-                                        AND Route.ref <> ?
-                                        ORDER BY Station.id''',
-                                     (station[1], station[2],
-                                      station[3], route[1]))
-                    for adjacent_existing_stations in database.fetchall():
-                        exit_cycle_2 = False
-                        if graph.has_node(adjacent_existing_stations[0]):
-                            neighbours_of_existing_node = nx.all_neighbors(
-                                graph,
-                                adjacent_existing_stations[0]
-                            )
-                            for neighbour in neighbours_of_existing_node:
-                                neighbour_name = nx.get_node_attributes(graph, 'name')[neighbour]
-                                if previous_station and index + 1 < len(route_stations):
-                                    if neighbour_name == previous_station[1] or \
-                                            neighbour_name == route_stations[index + 1][1]:
-                                        station_already_exists_id = adjacent_existing_stations[0]
-                                        station_already_exists_id_route_id = adjacent_existing_stations[1]
-                                        exit_cycle = True
-                                        exit_cycle_2 = True
-                                        break
-                                elif previous_station and index + 1 >= len(route_stations):
-                                    if neighbour_name == previous_station[1]:
-                                        station_already_exists_id = adjacent_existing_stations[0]
-                                        station_already_exists_id_route_id = adjacent_existing_stations[1]
-                                        exit_cycle = True
-                                        exit_cycle_2 = True
-                                        break
-                            if exit_cycle_2:
+                # if we did not find anything on same routes, then we search for same station on other route (line) but with the same geo position
+                # this can happen in case of some subway where few 'virtual' lines (routes in OSM) are based on one physical pair of tracks
+                # e.g. Circle and Bakerloo lines in London on shared partes of route
+                # counting them as separate nodes / edges of the graph is not fair as they are fully identical for rider and thus do not increase connectivity of the graph
+            if station_already_exists_id == 0:
+                # below block is probably the most complicated part of the program, and it fights bad data quality in OSM when
+                # two or more routes go on same physical tracks and theoretically ALL stations on both (or more) routes should be on same lat / lon geo position
+                # but they don't...  Since adding them all will add some fake loops in graphs which increase it's metrics, we have to identify such situations
+                # and avoid adding stations which satifsy the following criteria:
+                # 1. have same name
+                # 2. located on different routes
+                # 3. existing 'adjacent' node satifying 1. and 2. has neighbours like previous or next station in the route that we iterate onto (so we make sure it belongs to the same physical route and not just station
+                # identical name on other side of the city (who knows...)
+                # we can identify neighbours in graph properly thanks to the fact that we mark previous station with 'old' id that already exists in graph in previous iteration in case we already found it in the graph
+                database.execute('''SELECT Station.id, Route.id 
+                                    FROM Station JOIN Route
+                                    ON Station.route_id = Route.id
+                                    WHERE Station.name = ? 
+                                    AND Station.longitude <> ? 
+                                    AND Station.latitude <> ? 
+                                    AND Route.ref <> ?
+                                    ORDER BY Station.id''',
+                                 (station[1], station[2],
+                                  station[3], route[1]))
+                for adjacent_existing_stations in database.fetchall():
+                    found_station = False
+                    if graph.has_node(adjacent_existing_stations[0]):
+                        neighbours_of_existing_node = nx.all_neighbors(graph, adjacent_existing_stations[0])
+                        for neighbour in neighbours_of_existing_node:
+                            neighbour_name = nx.get_node_attributes(graph, 'name')[neighbour]
+                            if previous_station and index + 1 < len(route_stations) and \
+                                    (neighbour_name == previous_station[1] or
+                                     neighbour_name == route_stations[index + 1][1]):
+                                station_already_exists_id = adjacent_existing_stations[0]
+                                station_already_exists_id_route_id = adjacent_existing_stations[1]
+                                found_station = True
                                 break
-                    if exit_cycle:
+                            elif previous_station and index + 1 >= len(route_stations) and \
+                                    neighbour_name == previous_station[1]:
+                                station_already_exists_id = adjacent_existing_stations[0]
+                                station_already_exists_id_route_id = adjacent_existing_stations[1]
+                                found_station = True
+                                break
+                    if found_station:
                         break
             if station_already_exists_id != 0:
                 if (not previous_station) or graph.has_edge(previous_station[0],
