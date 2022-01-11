@@ -377,7 +377,8 @@ database.executescript('''
         name TEXT UNIQUE,
         stations_number SMALLINT,
         avg_haul INTEGER,
-        optimality_indx REAL
+        optimality_indx REAL,
+        s_index REAL
     );
     
     CREATE TABLE IF NOT EXISTS Way (
