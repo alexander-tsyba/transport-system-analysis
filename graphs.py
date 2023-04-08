@@ -401,12 +401,3 @@ for system in database.fetchall():
           ' interchanges!')
 
 db_connection.close()  # closing connection with SQLite
-
-# urban rail should actually have the same weight as subway urbal rail add nodes only within bounding box
-# в формуле нужно учесть еще и маршрутную скорость
-# overground должен увеличивать вес быстрее чем остальные в зависимости от дистанции
-# посчитать сколько ресурсов займет расчет одного графа?
-# переписать механизм расчета пересадок - исключить SELECT для каждой пересадки, убрать interchange name (зачем она?)
-# merge'ить по name и distance
-# для subway, train, light_rail - выгружать такие станции, но искать combinations только их с ними
-# additional check for mergers on final graph

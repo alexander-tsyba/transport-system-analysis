@@ -164,8 +164,4 @@ else:
     print('result.csv successfully generated!')
 
 db_connection.close()
-# gui to create and unify all functions
-# gpickle name with country to avoid same cities
-# population density в точке...
-# константы переменные
-# комментарии к коду
+

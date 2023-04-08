@@ -434,15 +434,3 @@ with open('cities_man.txt', 'r', encoding='utf8') as cities_list:
 
 print("All cities added!")
 db_connection.close()
-
-# error handling - correctly
-# spread-index
-# betweness cenrality?
-# vs. car path optimality - build route via Google API?
-# рельсовый транспорт логично смотреть потому что это анализ того, как власти направили потоки!
-# наложение реальной плотности поездок по данным яндекса внутренним
-
-# анализ начать с метро, гор поездов и ЛРТ...
-# изложить в статье цели и след шаги - GUI, плотность населения и AI
-# обосновать почему это а не гугл например
-# сразу сделать дисклеймер про качество кода

@@ -27,6 +27,3 @@ path_graph = system_graph.edge_subgraph(path_edgelist)
 draw_network_tofile(system_graph, path_graph, 0.3)
 
 db_connection.close()
-
-# get single path info
-# check folder os.path everywhere in manual tools

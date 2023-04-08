@@ -5,14 +5,7 @@ from get_distance import geo_distance
 from itertools import combinations
 from itertools import product
 
-# not efficient stepping in get_paths
 
-# for heavy rail manual interchanges since - not all overground, some built
-# and often it is within one payment area and sometimes even physically close
-# stations do not have interchange physically - like Smolenskaya / Smolenskaya
-# no such issue with overground transit
-
-# for tram / bus / trolleybus that can connect to subway, train, light_rail
 def way_auto_interchanges_to_graph(system_id, graph, database):
     waiting_coef = {
         'subway': (1.5 * 667) / 1000,
@@ -346,7 +339,7 @@ for system in database.fetchall():
     db_connection.commit()
 
     print('Done adding manual + auto interchanges and merging adjacent nodes!')
-    print('Now run calculate.py or calculate_auto.py to calculate shortest paths and optimality over the graph')
+    print('Now run calculate.py to calculate shortest paths and optimality over the graph')
 
     nx.write_gpickle(system_graph, 'final/' + str(system[1].split(',')[0]) + '.gpickle')
 
